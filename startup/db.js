@@ -1,7 +1,7 @@
-// const mongoose = require("mongoose");
+const mongoose = require("mongoose");
 
-// module.exports = function () {
-//     mongoose
-//         .connect("mongodb://localhost:27017/project")
-//         .then(() => console.info("connected to mongoDB"));
-// };
+module.exports = function () {
+    mongoose
+        .connect(process.env.db)
+        .then(() => console.info("connected to mongoDB"));
+};
