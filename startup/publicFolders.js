@@ -1,15 +1,12 @@
-// const express = require("express");
-// //const path = require('path');
+const express = require("express");
 
-// module.exports = function (app) {
-//     //var public = path.join(__dirname, 'public'); may be useful later
-
-//     app.use(
-//         "/public/uploads/profile_pictures",
-//         express.static("public/uploads/profile_pictures")
-//     );
-//     app.use(
-//         "/public/uploads/pictures",
-//         express.static("public/uploads/pictures")
-//     );
-// };
+module.exports = function (app) {
+    app.use(
+        "/public/uploads/profile_pictures",
+        express.static("public/uploads/profile_pictures")
+    );
+    app.use(
+        "/public/uploads/book_cover",
+        express.static("public/uploads/book_cover")
+    );
+};

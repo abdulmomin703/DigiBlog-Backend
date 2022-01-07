@@ -12,7 +12,6 @@ router.post("/add", async (req, res, next) => {
 
         let user = await User.findOne({ _id: req.body.publisher });
         if (!user) return res.status(400).send("User Not Found!");
-        console.log(user);
         let library = new Library(
             _.pick(req.body, [
                 "publisher",
@@ -114,7 +113,6 @@ router.get("/mybooks/:id", async (req, res) => {
 // //router.put("/edit", [auth, upload.single("avatar")], async (req, res) => {
 
 router.put("/edit", async (req, res) => {
-    console.log(req);
     try {
         let library = await Library.findById(req.body._id);
         if (!library) return res.status(400).send("Can't find Library!");

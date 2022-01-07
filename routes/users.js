@@ -63,7 +63,7 @@ router.post("/signin", async (req, res, next) => {
             return res.status(400).send("Account Deactivated");
         const token = {
             token: user.generateAuthToken(),
-            user: _.pick(user, ["avatar", "_id"]),
+            user: user,
         };
         res.send(token);
     } catch (err) {
