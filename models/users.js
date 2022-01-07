@@ -80,6 +80,7 @@ function validateUser(user) {
         email: Joi.string().email().required(),
         bio: Joi.string().min(0).max(255),
         phonenumber: Joi.string().min(11).max(11),
+        address: Joi.string(),
         avatar: Joi.string(),
         type: Joi.string(),
         status: Joi.number(),
@@ -89,7 +90,6 @@ function validateUser(user) {
 
 function validateUserEdit(user) {
     const schema = Joi.object({
-        _id: Joi.objectId.required(),
         firstname: Joi.string().min(1).max(50).required(),
         lastname: Joi.string().min(1).max(50).required(),
         bio: Joi.string().min(0).max(255),
