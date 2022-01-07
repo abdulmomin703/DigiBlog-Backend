@@ -1,6 +1,8 @@
 var express = require("express");
 var router = express.Router();
 const _ = require("lodash");
+const fs = require("fs");
+const path = require("path");
 const {
     User,
     validate,
@@ -9,6 +11,8 @@ const {
 } = require("../models/users");
 const { Book } = require("../models/book");
 const auth = require("../middleware/auth");
+const { use } = require("express/lib/router");
+const { Library } = require("../models/library");
 const upload = require("../middleware/multer")(
     "../public/uploads/profile_pictures/"
 );
@@ -78,8 +82,15 @@ router.post("/signin", async (req, res, next) => {
 
 router.get("/nobooks", auth, async (req, res) => {
     try {
-        let book = await Book.find({ owner: req.user._id });
-        res.send(book.length.toString());
+        let user = await User.findById(req.user._id);
+        if (!user) res.status(201).send("User not Found");
+        if (user.type == "bookreader") {
+            let book = await Book.find({ owner: req.user._id });
+            res.send(book.length.toString());
+        } else if (user.type == "publisher") {
+            let library = await Library.find({ publisher: req.user._id });
+            res.send(library.length.toString());
+        }
     } catch (err) {
         console.log(err.message);
         res.status(500).send(err.message);
@@ -120,6 +131,21 @@ router.put("/edit", [auth, upload.single("avatar")], async (req, res) => {
         );
 
         res.send(user);
+    } catch (err) {
+        console.log(err.message);
+        res.status(500).send(err.message);
+    }
+});
+
+router.get("/publisher/:id", async (req, res) => {
+    try {
+        let user = await User.findOne({
+            _id: req.params.id,
+            type: "publisher",
+        });
+        if (!user) return res.status(201).send("Can't find User!");
+        let name = user.firstname + " " + user.lastname;
+        res.send(name);
     } catch (err) {
         console.log(err.message);
         res.status(500).send(err.message);

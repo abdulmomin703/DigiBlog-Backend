@@ -22,7 +22,7 @@ router.post("/buy", async (req, res, next) => {
             library.id,
             {
                 $set: {
-                    copies: library.copies - 1,
+                    copies: library.remainingCopies - 1,
                 },
             },
             { new: true }
