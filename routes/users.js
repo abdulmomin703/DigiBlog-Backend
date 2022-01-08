@@ -89,23 +89,6 @@ router.post("/signin", async (req, res, next) => {
     }
 });
 
-router.get("/nobooks", auth, async (req, res) => {
-    try {
-        let user = await User.findById(req.user._id);
-        if (!user) res.status(201).send("User not Found");
-        if (user.type == "bookreader") {
-            let book = await Book.find({ owner: req.user._id });
-            res.send(book.length.toString());
-        } else if (user.type == "publisher") {
-            let library = await Library.find({ publisher: req.user._id });
-            res.send(library.length.toString());
-        }
-    } catch (err) {
-        console.log(err.message);
-        res.status(500).send(err.message);
-    }
-});
-
 router.put("/edit", [auth, upload.single("avatar")], async (req, res) => {
     console.log("i am here");
     try {

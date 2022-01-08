@@ -34,6 +34,7 @@ router.post(
                     "description",
                     "edition",
                     "copies",
+                    "remainingCopies",
                     "price",
                     "genre",
                     "file",
