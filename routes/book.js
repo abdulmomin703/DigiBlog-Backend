@@ -6,38 +6,44 @@ const { Library } = require("../models/library");
 const { User } = require("../models/users");
 const { Offer } = require("../models/offer");
 const { Notification } = require("../models/notifcation");
+const auth = require("../middleware/auth");
 
-router.post("/buy", async (req, res, next) => {
+router.post("/buy", auth, async (req, res, next) => {
     try {
         let library = await Library.findOne({ _id: req.body.library });
-        if (!library) return res.status(404).send("Library Doesn't Exists");
+        if (!library) return res.status(201).send("Book Doesn't Exists");
+        if (library.remainingCopies == 0)
+            return res.status(201).send("Book out of Stock.");
         let user = await User.findOne({
-            _id: req.body.owner,
+            _id: req.user._id,
             type: "bookreader",
         });
-        if (!user) return res.status(400).send("Bookreader Not Found!");
+        if (!user) return res.status(201).send("Bookreader Not Found!");
+        req.body["owner"] = req.user._id;
         let book = new Book(_.pick(req.body, ["library", "owner", "status"]));
         await book.save();
         library = await Library.findByIdAndUpdate(
             library.id,
             {
                 $set: {
-                    copies: library.remainingCopies - 1,
+                    remainingCopies: library.remainingCopies - 1,
                 },
             },
             { new: true }
         );
-        let msg =
-            user.username +
-            " bought your book " +
-            library.bookname +
-            ". The remaining number of copies are " +
-            library.copies +
-            ".";
+        // let msg =
+        //     offeredUser.username +
+        //     " bought your book " +
+        //     offeredBook.library.bookname +
+        //     ". The remaining number of copies are " +
+        //     offeredBook.library.remainingCopies +
+        //     ".";
         let notification = new Notification({
             user: library.publisher,
-            message: msg,
+            offeredUser: req.user._id,
+            offeredBook: book.id,
             status: 1,
+            type: 3,
         });
         await notification.save();
 
@@ -48,10 +54,16 @@ router.post("/buy", async (req, res, next) => {
     }
 });
 
-router.put("/putonswap", async (req, res, next) => {
+router.put("/putonswap", auth, async (req, res, next) => {
     try {
         let book = await Book.findById(req.body._id);
-        if (!book) return res.status(404).send("Book Doesn't Exists");
+        if (!book) return res.status(201).send("Book Doesn't Exists");
+        if (book.owner != req.user._id)
+            return res
+                .status(201)
+                .send(
+                    "You don't own this book anymore. Please refresh the page."
+                );
         book = await Book.findByIdAndUpdate(
             book.id,
             {
@@ -68,10 +80,16 @@ router.put("/putonswap", async (req, res, next) => {
     }
 });
 
-router.put("/removefromswap", async (req, res, next) => {
+router.put("/removefromswap", auth, async (req, res, next) => {
     try {
         let book = await Book.findById(req.body._id);
-        if (!book) return res.status(404).send("Book Doesn't Exists");
+        if (!book) return res.status(201).send("Book Doesn't Exists");
+        if (book.owner != req.user._id)
+            return res
+                .status(201)
+                .send(
+                    "You don't own this book anymore. Please refresh the page."
+                );
         book = await Book.findByIdAndUpdate(
             book.id,
             {
@@ -81,47 +99,18 @@ router.put("/removefromswap", async (req, res, next) => {
             },
             { new: true }
         );
-        let offers = await Offer.find({ offeredBook: req.body._id })
-            .populate({
-                path: "offeredUser",
-                select: "username",
-            })
-            .populate({
-                path: "offeringUser",
-                select: "username",
-            })
-            .populate({
-                path: "offeredBook",
-                populate: [
-                    {
-                        path: "library",
-                        populate: [
-                            { path: "publisher", select: "firstname lastname" },
-                        ],
-                    },
-                ],
-            })
-            .populate({
-                path: "offeringBook",
-                populate: [
-                    {
-                        path: "library",
-                        populate: [
-                            { path: "publisher", select: "firstname lastname" },
-                        ],
-                    },
-                ],
-            });
+        let offers = await Offer.find({ offeredBook: req.body._id });
 
         for (let i = 0; i < offers.length; i++) {
-            let msg =
-                "The " +
-                offers[i].offeredBook.library.bookname +
-                " book is no longer available for swap";
+            // let msg =
+            //     "The " +
+            //     offers[i].offeredBook.library.bookname +
+            //     " book is no longer available for swap";
             let notification = new Notification({
                 user: offers[i].offeringUser,
-                message: msg,
+                offeredBook: offers[i].offeredBook,
                 status: 1,
+                type: 1,
             });
             await notification.save();
         }
@@ -133,15 +122,18 @@ router.put("/removefromswap", async (req, res, next) => {
     }
 });
 
-router.get("/mybooks/:id", async (req, res) => {
+router.get("/mybooks", auth, async (req, res) => {
     try {
         let user = await User.findOne({
-            _id: req.params.id,
+            _id: req.user._id,
             type: "bookreader",
         });
-        if (!user) return res.status(400).send("Bookreader Not Found!");
-        let books = await Book.find({ owner: req.params.id });
-        if (books.length == 0) return res.status(404).send("No Books Found");
+        if (!user) return res.status(201).send("Bookreader Not Found!");
+        let books = await Book.find({ owner: req.user._id }).populate({
+            path: "library",
+            populate: [{ path: "publisher", select: "firstname lastname" }],
+        });
+        if (books.length == 0) return res.status(201).send("No Books Found");
         res.send(books);
     } catch (err) {
         console.log(err.message);
@@ -149,21 +141,21 @@ router.get("/mybooks/:id", async (req, res) => {
     }
 });
 
-router.put("/swap", async (req, res, next) => {
+router.put("/swap", auth, async (req, res, next) => {
     try {
         let book1 = await Book.findById(req.body.book1);
-        if (!book1) return res.status(404).send("Book1 Doesn't Exists");
+        if (!book1) return res.status(201).send("Book1 Doesn't Exists");
         let book2 = await Book.findById(req.body.book2);
-        if (!book2) return res.status(404).send("Book2 Doesn't Exists");
+        if (!book2) return res.status(201).send("Book2 Doesn't Exists");
         let offer = await Offer.findById(req.body.offer);
-        if (!offer) return res.status(404).send("Offer Expired.");
+        if (!offer) return res.status(201).send("Offer Expired.");
         if (offer.offeredUser.equals(book1.owner) != true) {
             await Offer.deleteMany({ _id: req.body.offer });
-            return res.status(404).send("Offer Expired.");
+            return res.status(201).send("Offer Expired.");
         }
         if (offer.offeringUser.equals(book2.owner) != true) {
             await Offer.deleteMany({ _id: req.body.offer });
-            return res.status(404).send("Offer Expired.");
+            return res.status(201).send("Offer Expired.");
         }
 
         let temp = book1.owner;
@@ -187,25 +179,63 @@ router.put("/swap", async (req, res, next) => {
             },
             { new: true }
         );
-        let user = await User.findById(book1.owner);
-        let library1 = await Library.findById(book1.library);
-        let library2 = await Library.findById(book2.library);
-        let msg =
-            user.username +
-            " accepted your offer to swap his" +
-            library1.bookname +
-            " book with your " +
-            library2.bookname +
-            " book.";
-        library2.bookname + ".";
+
+        // let msg =
+        //     user.username +
+        //     " accepted your offer to swap his" +
+        //     library1.bookname +
+        //     " book with your " +
+        //     library2.bookname +
+        //     " book.";
         let notification = new Notification({
-            user: book2.owner,
-            message: msg,
+            user: book1.owner,
+            offeredUser: book2.owner,
+            offeredBook: book1.id,
+            offeringBook: book2.id,
+            type: 2,
             status: 1,
         });
         await notification.save();
+        let offers = await Offer.find({
+            offeredBook: req.body.book1,
+            offeringUser: { $ne: book1.owner },
+        });
+
+        for (let i = 0; i < offers.length; i++) {
+            // let msg =
+            //     "The " +
+            //     offers[i].offeredBook.library.bookname +
+            //     " book is no longer available for swap";
+            let notification = new Notification({
+                user: offers[i].offeringUser,
+                offeredBook: offers[i].offeredBook,
+                status: 1,
+                type: 1,
+            });
+            await notification.save();
+        }
         await Offer.deleteMany({ offeredBook: req.body.book1 });
+
+        offers = await Offer.find({
+            offeredBook: req.body.book2,
+            offeringUser: { $ne: book2.owner },
+        });
+
+        for (let i = 0; i < offers.length; i++) {
+            // let msg =
+            //     "The " +
+            //     offers[i].offeredBook.library.bookname +
+            //     " book is no longer available for swap";
+            let notification = new Notification({
+                user: offers[i].offeringUser,
+                offeredBook: offers[i].offeredBook,
+                status: 1,
+                type: 1,
+            });
+            await notification.save();
+        }
         await Offer.deleteMany({ offeredBook: req.body.book2 });
+
         res.send([book1, book2]);
     } catch (err) {
         console.log(err.message);
@@ -213,16 +243,16 @@ router.put("/swap", async (req, res, next) => {
     }
 });
 
-router.get("/viewswap/:id", async (req, res, next) => {
+router.get("/viewswap", auth, async (req, res, next) => {
     try {
         let array = [];
         let books = await Book.find({
             status: 0,
-            owner: { $ne: req.params.id },
+            owner: { $ne: req.user._id },
         })
             .populate({
                 path: "library",
-                select: "coverimage price",
+                populate: [{ path: "publisher", select: "firstname lastname" }],
             })
             .populate({
                 path: "owner",
@@ -230,11 +260,11 @@ router.get("/viewswap/:id", async (req, res, next) => {
             });
 
         if (books.length == 0)
-            return res.status(404).send("No Books available for Swap");
+            return res.status(201).send("No Books available for Swap");
         for (let i = 0; i < books.length; i++) {
             let obj = _.pick(books[i], ["_id", "library", "owner", "status"]);
             let offer = await Offer.find({
-                offeringUser: req.params.id,
+                offeringUser: req.user._id,
                 offeredBook: books[i].id,
             });
             if (offer.length == 0) {
@@ -242,6 +272,35 @@ router.get("/viewswap/:id", async (req, res, next) => {
             } else {
                 obj["offer"] = true;
             }
+            array.push(obj);
+        }
+        const result = array.filter((x) => x.owner._id != req.user._id);
+        res.send(result);
+    } catch (err) {
+        console.log(err.message);
+        res.status(500).send(err.message);
+    }
+});
+
+router.get("/viewswapall", async (req, res, next) => {
+    try {
+        let array = [];
+        let books = await Book.find({
+            status: 0,
+        })
+            .populate({
+                path: "library",
+                populate: [{ path: "publisher", select: "firstname lastname" }],
+            })
+            .populate({
+                path: "owner",
+                select: "username",
+            });
+        if (books.length == 0)
+            return res.status(404).send("No Books available for Swap");
+        for (let i = 0; i < books.length; i++) {
+            let obj = _.pick(books[i], ["_id", "library", "owner", "status"]);
+            obj["offer"] = false;
             array.push(obj);
         }
         res.send(array);

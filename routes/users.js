@@ -50,7 +50,7 @@ router.post("/signup", async (req, res, next) => {
 
         await user.save();
 
-        const token = { token: user.generateAuthToken(), user: user };
+        const token = { token: user.generateAuthToken(), user: user, books: 0 };
         res.send(token);
     } catch (err) {
         console.log(err.message);
@@ -67,11 +67,20 @@ router.post("/signin", async (req, res, next) => {
             walletaddress: req.body.walletaddress,
         });
         if (!user) return res.status(201).send("User Doesn't Exists1");
+        let length = 0;
+        if (user.type == "bookreader") {
+            let book = await Book.find({ owner: user.id });
+            length = book.length;
+        } else if (user.type == "publisher") {
+            let library = await Library.find({ publisher: user.id });
+            length = library.length;
+        }
         if (user.status == 0)
             return res.status(201).send("Account Deactivated");
         const token = {
             token: user.generateAuthToken(),
             user: user,
+            books: length,
         };
         res.send(token);
     } catch (err) {

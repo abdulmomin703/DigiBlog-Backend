@@ -1,35 +1,38 @@
 var express = require("express");
 var router = express.Router();
 const _ = require("lodash");
+const auth = require("../middleware/auth");
 const { Book } = require("../models/book");
-const { Library } = require("../models/library");
+const { Notification } = require("../models/notifcation");
 const { Offer } = require("../models/offer");
 const { User } = require("../models/users");
 
-router.post("/add", async (req, res, next) => {
+router.post("/add", auth, async (req, res, next) => {
     try {
         let book1 = await Book.findOne({ _id: req.body.offeringBook });
-        if (!book1) return res.status(404).send("Offering Book Doesn't Exists");
+        if (!book1) return res.status(201).send("Offering Book Doesn't Exists");
 
         let book2 = await Book.findOne({ _id: req.body.offeredBook });
-        if (!book2) return res.status(404).send("Offered Book Doesn't Exists");
+        if (!book2) return res.status(201).send("Offered Book Doesn't Exists");
         if (book2.status != 0)
-            return res.status(404).send("Offered Book Not available for swap");
+            return res.status(201).send("Offered Book Not available for swap");
 
         let user1 = await User.findOne({
-            _id: req.body.offeringUser,
+            _id: req.user._id,
             type: "bookreader",
         });
         if (!user1)
-            return res.status(400).send("Offering Bookreader Not Found!");
+            return res.status(201).send("Offering Bookreader Not Found!");
 
         let user2 = await User.findOne({
-            _id: req.body.offeredUser,
+            _id: book2.owner,
             type: "bookreader",
         });
         if (!user2)
-            return res.status(400).send("Offered Bookreader Not Found!");
-
+            return res.status(201).send("Offered Bookreader Not Found!");
+        req.body["offeringUser"] = req.user._id;
+        req.body["offeredUser"] = book2.owner;
+        console.log(req.body);
         let offer = new Offer(
             _.pick(req.body, [
                 "offeringUser",
@@ -39,6 +42,22 @@ router.post("/add", async (req, res, next) => {
             ])
         );
         await offer.save();
+        // let msg =
+        //     req.body.offeringUser +
+        //     " made an offer to swap " +
+        //     req.body.offeringBook +
+        //     " with " +
+        //     req.body.offeredBook +
+        //     ".";
+        let notification = new Notification({
+            user: req.body.offeredUser,
+            offeredUser: req.body.offeringUser,
+            offeredBook: req.body.offeredBook,
+            offeringBook: req.body.offeringBook,
+            type: 4,
+            status: 1,
+        });
+        await notification.save();
         res.send(offer);
     } catch (err) {
         console.log(err.message);
@@ -46,11 +65,27 @@ router.post("/add", async (req, res, next) => {
     }
 });
 
-router.delete("/delete/:id", async (req, res, next) => {
+router.delete("/:id", auth, async (req, res, next) => {
     try {
         let offer = await Offer.findByIdAndRemove(req.params.id);
         console.log(offer);
-        if (!offer) return res.status(400).send("Offer Not Found!");
+        if (!offer) return res.status(201).send("Offer Not Found!");
+        // let msg =
+        //     req.user._id +
+        //     " rejected your offer to swap " +
+        //     offer.offeredBook +
+        //     " with " +
+        //     offer.offeringBook +
+        //     ".";
+        let notification = new Notification({
+            user: offer.offeringUser,
+            offeredUser: req.user._id,
+            offeredBook: offer.offeredBook,
+            offeringBook: offer.offeringBook,
+            type: 5,
+            status: 1,
+        });
+        await notification.save();
         res.send("Deleted Successfully");
     } catch (err) {
         console.log(err.message);
@@ -58,9 +93,9 @@ router.delete("/delete/:id", async (req, res, next) => {
     }
 });
 
-router.get("/:id", async (req, res, next) => {
+router.get("/getOffers", auth, async (req, res, next) => {
     try {
-        let offers = await Offer.find({ offeredUser: req.params.id })
+        let offers = await Offer.find({ offeredUser: req.user._id })
             .populate({
                 path: "offeredUser",
                 select: "username",
@@ -91,7 +126,7 @@ router.get("/:id", async (req, res, next) => {
                     },
                 ],
             });
-        if (!offers) return res.status(400).send("Offers Not Found!");
+        if (!offers) return res.status(201).send("Offers Not Found!");
         res.send(offers);
     } catch (err) {
         console.log(err.message);

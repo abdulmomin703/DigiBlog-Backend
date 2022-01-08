@@ -51,7 +51,10 @@ router.post(
 router.get("/all", auth, async (req, res, next) => {
     try {
         let array = [];
-        let library = await Library.find();
+        let library = await Library.find().populate({
+            path: "publisher",
+            select: "firstname lastname",
+        });
         if (library.length == 0)
             return res.status(201).send("No Books available for Purchase");
         for (let i = 0; i < library.length; i++) {
@@ -88,7 +91,10 @@ router.get("/all", auth, async (req, res, next) => {
 router.get("/alllib", async (req, res, next) => {
     try {
         let array = [];
-        let library = await Library.find();
+        let library = await Library.find().populate({
+            path: "publisher",
+            select: "firstname lastname",
+        });
         if (library.length == 0)
             return res.status(201).send("No Books available for Purchase");
         for (let i = 0; i < library.length; i++) {
@@ -143,7 +149,10 @@ router.get("/mybooks", auth, async (req, res) => {
             type: "publisher",
         });
         if (!user) return res.status(201).send("Publisher Not Found!");
-        let library = await Library.find({ publisher: req.user._id });
+        let library = await Library.find({ publisher: req.user._id }).populate({
+            path: "publisher",
+            select: "firstname lastname",
+        });
         if (library.length == 0) return res.status(201).send("No Books Found");
         res.send(library);
     } catch (err) {
