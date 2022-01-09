@@ -31,11 +31,15 @@ router.get("/", auth, async (req, res, next) => {
             .populate({ path: "offeredUser", select: "username" })
             .populate({
                 path: "offeredBook",
-                populate: [{ path: "library", select: "bookname" }],
+                populate: [
+                    { path: "library", select: "bookname remainingCopies" },
+                ],
             })
             .populate({
                 path: "offeringBook",
-                populate: [{ path: "library", select: "bookname" }],
+                populate: [
+                    { path: "library", select: "bookname remainingCopies" },
+                ],
             });
         if (notifications.length == 0)
             return res.status(201).send("Notifications Not Found!");

@@ -68,6 +68,7 @@ router.get("/all", auth, async (req, res, next) => {
                 "description",
                 "edition",
                 "copies",
+                "remainingCopies",
                 "price",
                 "genre",
             ]);
@@ -108,6 +109,7 @@ router.get("/alllib", async (req, res, next) => {
                 "description",
                 "edition",
                 "copies",
+                "remainingCopies",
                 "price",
                 "genre",
             ]);

@@ -262,20 +262,30 @@ router.get("/viewswap", auth, async (req, res, next) => {
         if (books.length == 0)
             return res.status(201).send("No Books available for Swap");
         for (let i = 0; i < books.length; i++) {
-            let obj = _.pick(books[i], ["_id", "library", "owner", "status"]);
-            let offer = await Offer.find({
-                offeringUser: req.user._id,
-                offeredBook: books[i].id,
+            let book = await Book.find({
+                owner: req.user_id,
+                library: books[i].library,
             });
-            if (offer.length == 0) {
-                obj["offer"] = false;
-            } else {
-                obj["offer"] = true;
+            if (!book) {
+                let obj = _.pick(books[i], [
+                    "_id",
+                    "library",
+                    "owner",
+                    "status",
+                ]);
+                let offer = await Offer.find({
+                    offeringUser: req.user._id,
+                    offeredBook: books[i].id,
+                });
+                if (offer.length == 0) {
+                    obj["offer"] = false;
+                } else {
+                    obj["offer"] = true;
+                }
+                array.push(obj);
             }
-            array.push(obj);
         }
-        const result = array.filter((x) => x.owner._id != req.user._id);
-        res.send(result);
+        res.send(array);
     } catch (err) {
         console.log(err.message);
         res.status(500).send(err.message);
