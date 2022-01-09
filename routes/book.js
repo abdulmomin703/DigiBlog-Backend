@@ -1,4 +1,5 @@
 var express = require("express");
+const mongoose = require("mongoose");
 var router = express.Router();
 const _ = require("lodash");
 const { Book } = require("../models/book");
@@ -263,10 +264,10 @@ router.get("/viewswap", auth, async (req, res, next) => {
             return res.status(201).send("No Books available for Swap");
         for (let i = 0; i < books.length; i++) {
             let book = await Book.find({
-                owner: req.user_id,
-                library: books[i].library,
+                owner: mongoose.Types.ObjectId(req.user._id),
+                library: books[i].library._id,
             });
-            if (!book) {
+            if (book.length == 0) {
                 let obj = _.pick(books[i], [
                     "_id",
                     "library",
