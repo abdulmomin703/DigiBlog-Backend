@@ -5,4 +5,8 @@ module.exports = function (app) {
         "/public/uploads/profile_pictures",
         express.static("public/uploads/profile_pictures")
     );
+    app.use(
+        "/public/uploads/blog_pictures",
+        express.static("public/uploads/blog_pictures")
+    );
 };
