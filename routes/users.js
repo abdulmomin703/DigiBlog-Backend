@@ -33,7 +33,7 @@ router.put("/edit", [upload.single("avatar")], async (req, res) => {
 });
 
 router.put("/editBlog", [uploadBlog.single("image")], async (req, res) => {
-    console.log("i am here");
+    console.log("i am here", req.body.current_image);
     try {
         console.log(req);
         if (req.file) {
@@ -42,12 +42,28 @@ router.put("/editBlog", [uploadBlog.single("image")], async (req, res) => {
                     path.join(
                         __dirname,
                         "../public/uploads/blog_pictures/" +
-                            req.body.current_avatar
+                            req.body.current_image
                     )
                 );
             }
         }
         res.send(req.file.filename);
+    } catch (err) {
+        console.log(err.message);
+        res.status(500).send(err.message);
+    }
+});
+
+router.post("/deleteBlog", async (req, res) => {
+    console.log("i am here", req.body.image);
+    try {
+        fs.unlinkSync(
+            path.join(
+                __dirname,
+                "../public/uploads/blog_pictures/" + req.body.image
+            )
+        );
+        res.send("Image Deleted Successfully");
     } catch (err) {
         console.log(err.message);
         res.status(500).send(err.message);
